@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>투자 지표 대시보드</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+<script src="data.js?v=1"></script>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #fff; --ink: #111827; --sub: #6b7280; --line: #e5e7eb;
+    --base: #475569;
+    --l1: #eab308; --l2: #f97316; --l3: #dc2626; --l4: #7f1d1d;
+    --up: #dc2626; --down: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  header { position: sticky; top: 0; z-index: 10; background: rgba(245,246,248,.94);
+    backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 0 20px; }
+  .hd { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 0; }
+  .hd h1 { font-size: 19px; margin: 0; font-weight: 700; }
+  .meta { color: var(--sub); font-size: 13px; }
+  .ctrl { margin-left: auto; display: flex; gap: 12px; flex-wrap: wrap; }
+  .seg { display: inline-flex; background: #e9ebef; border-radius: 8px; padding: 3px; }
+  .seg button { border: 0; background: transparent; padding: 6px 11px; font: inherit; font-size: 13px;
+    color: var(--sub); border-radius: 6px; cursor: pointer; }
+  .seg button.on { background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+  .alerts { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 0 4px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 6px 11px;
+    border-radius: 999px; background: #fff; border: 1px solid var(--line); cursor: pointer; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .chip.lv1 { background: #fef9c3; border-color: #fde047; }
+  .chip.lv2 { background: #ffedd5; border-color: #fdba74; }
+  .chip.lv3 { background: #fee2e2; border-color: #fca5a5; }
+  .chip.lv4 { background: #7f1d1d; border-color: #7f1d1d; color: #fff; }
+  .chip.none { color: var(--sub); cursor: default; }
+
+  h2 { font-size: 15px; margin: 26px 0 10px; color: #374151; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; }
+  .grid.small { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 6px;
+    border-top: 4px solid transparent; min-width: 0; }
+  .card.lv1 { border-top-color: var(--l1); } .card.lv2 { border-top-color: var(--l2); }
+  .card.lv3 { border-top-color: var(--l3); } .card.lv4 { border-top-color: var(--l4); }
+  .card.flash { animation: flash 1.2s ease 2; }
+  @keyframes flash { 50% { box-shadow: 0 0 0 4px rgba(220,38,38,.25); } }
+  .ct { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .ct .nm { font-weight: 650; font-size: 15px; }
+  .ct .src { font-size: 11px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .val { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+  .val .v { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+  .val .chg { font-size: 13px; font-weight: 600; }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-height: 24px; }
+  .bd { font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #f3f4f6; color: #374151; font-weight: 600; }
+  .bd.lv1 { background: #fef9c3; color: #854d0e; } .bd.lv2 { background: #ffedd5; color: #9a3412; }
+  .bd.lv3 { background: #fee2e2; color: #991b1b; } .bd.lv4 { background: #7f1d1d; color: #fff; }
+  .bd.rise { background: #fee2e2; color: #b91c1c; } .bd.fall { background: #dbeafe; color: #1d4ed8; }
+  .chart { width: 100%; height: 300px; }
+  .small .chart { height: 240px; }
+  .err { font-size: 12px; color: #b45309; margin-top: 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--sub); padding: 6px 0 0; }
+  .legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  table.m7 { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line);
+    border-radius: 12px; overflow: hidden; font-size: 13px; margin-bottom: 14px; }
+  table.m7 th, table.m7 td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.m7 th:first-child, table.m7 td:first-child { text-align: left; }
+  table.m7 th { background: #f9fafb; color: var(--sub); font-weight: 600; }
+  table.m7 tr:last-child td { border-bottom: 0; }
+  table.m7 tr { cursor: pointer; }
+  .tblwrap { overflow-x: auto; }
+  .empty { padding: 60px 20px; text-align: center; color: var(--sub); }
+  footer { color: var(--sub); font-size: 12px; padding: 30px 0 40px; line-height: 1.6; }
+  @media (max-width: 520px) {
+    .grid, .grid.small { grid-template-columns: 1fr; }
+    .ctrl { margin-left: 0; }
+    header { position: static; }
+    .wrap { padding: 0 12px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap hd">
+    <h1>투자 지표 대시보드</h1>
+    <span class="meta" id="meta"></span>
+    <div class="ctrl">
+      <div class="seg" id="rangeSeg">
+        <button data-r="3">3M</button><button data-r="6" class="on">6M</button><button data-r="12">1Y</button>
+        <button data-r="36">3Y</button><button data-r="60">5Y</button>
+      </div>
+      <div class="seg" id="peakSeg" title="고점 대비 하락률을 계산하는 기준">
+        <button data-p="ath" class="on">전고점 기준</button><button data-p="period">기간 고점 기준</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="alerts" id="alerts"></div>
+  <div class="legend">
+    <span><i style="background:var(--l1)"></i>-15% / 1단계</span>
+    <span><i style="background:var(--l2)"></i>-20% / 2단계</span>
+    <span><i style="background:var(--l3)"></i>-30%</span>
+    <span><i style="background:var(--l4)"></i>-40%</span>
+    <span>선 색이 바뀐 구간 = 기준 충족 구간</span>
+  </div>
+  <div id="app"></div>
+  <footer id="foot"></footer>
+</main>
+
+<script>
+(function () {
+  const D = window.DASH_DATA;
+  const app = document.getElementById('app');
+  if (!D || !D.series) {
+    app.innerHTML = '<div class="empty">아직 데이터가 없습니다. GitHub 저장소의 Actions 탭에서 "데이터 갱신"을 한 번 실행해 주세요.</div>';
+    return;
+  }
+  const S = D.series;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const C = { base: css('--base'), l1: css('--l1'), l2: css('--l2'), l3: css('--l3'), l4: css('--l4'), line: css('--line'), sub: css('--sub') };
+  const DD_LEVELS = [
+    { v: -15, c: C.l1, lv: 1 }, { v: -20, c: C.l2, lv: 2 }, { v: -30, c: C.l3, lv: 3 }, { v: -40, c: C.l4, lv: 4 },
+  ];
+  const state = { months: 6, peak: 'ath' };
+  const charts = [];
+
+  // ---------- 지표 정의 ----------
+  const SECTIONS = [
+    { title: '주가 지수 (고점 대비 하락)', cls: '', items: [
+      { key: 'nasdaq', type: 'dd' }, { key: 'sp500', type: 'dd' } ] },
+    { title: '변동성 · 투자 심리', cls: '', items: [
+      { key: 'vix', type: 'th', dir: 'above', levels: [{ v: 30, lv: 2, c: C.l2 }, { v: 40, lv: 3, c: C.l3 }],
+        label: v => `VIX ${v} 이상` },
+      { key: 'feargreed', type: 'th', dir: 'below', levels: [{ v: 15, lv: 2, c: C.l2 }, { v: 10, lv: 3, c: C.l3 }],
+        label: v => `${v} 이하`, fg: true, yMin: 0, yMax: 100 } ] },
+    { title: '금리', cls: '', items: [
+      { key: 'us10y', type: 'trend', line: 5, unitTxt: '%', fmtChg: x => `${x >= 0 ? '+' : ''}${x.toFixed(2)}%p` },
+      { key: 'us3m', type: 'info', fmtChg: x => `${x >= 0 ? '+' : ''}${x.toFixed(2)}%p`, note: '13주(3개월) 만기 T-Bill' },
+      { key: 'kofr', type: 'info', fmtChg: x => `${x >= 0 ? '+' : ''}${x.toFixed(3)}%p`, note: '한국 무위험지표금리(익일물)' } ] },
+    { title: '유가', cls: '', items: [
+      { key: 'wti', type: 'trend', line: 80, unitTxt: '$', overlay: 'brent', fmtChg: x => `${x >= 0 ? '+' : '-'}$${Math.abs(x).toFixed(2)}` } ] },
+  ];
+  const M7KEYS = Object.keys(S).filter(k => k.startsWith('m7_'));
+
+  // ---------- 유틸 ----------
+  const fmt = (v, d = 2) => v == null || isNaN(v) ? '-' : Number(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const digits = s => (s.unit === '%' ? (s.name === 'KOFR' ? 3 : 2) : 2);
+  const vfmt = (s, v) => s.unit === '$' ? '$' + fmt(v, 2) : s.unit === '%' ? fmt(v, digits(s)) + '%' : fmt(v, s.name === '공포탐욕지수' ? 0 : 2);
+  function cutoffIndex(dates) {
+    if (!dates.length) return 0;
+    const last = new Date(dates[dates.length - 1]);
+    const c = new Date(last); c.setMonth(c.getMonth() - state.months);
+    const cs = c.toISOString().slice(0, 10);
+    let i = dates.findIndex(d => d >= cs);
+    return i < 0 ? 0 : i;
+  }
+  function nAgo(arr, n) { return arr.length > n ? arr[arr.length - 1 - n] : arr[0]; }
+  function fgLabel(v) {
+    if (v < 25) return '극단적 공포'; if (v < 45) return '공포'; if (v <= 55) return '중립'; if (v <= 75) return '탐욕'; return '극단적 탐욕';
+  }
+  function el(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+
+  // 고점 대비 하락 계산
+  function drawdown(s) {
+    const i0 = cutoffIndex(s.dates);
+    const dates = s.dates.slice(i0), vals = s.values.slice(i0);
+    let peaks;
+    if (state.peak === 'ath' && s.ath) peaks = s.ath.slice(i0);
+    else { let m = -Infinity; peaks = vals.map(v => (m = Math.max(m, v))); }
+    const dd = vals.map((v, i) => +(100 * (v / peaks[i] - 1)).toFixed(2));
+    return { dates, vals, peaks, dd };
+  }
+  function ddLevel(x) { let lv = null; DD_LEVELS.forEach(L => { if (x <= L.v) lv = L; }); return lv; }
+
+  // ---------- 상태 계산 (알림 요약용) ----------
+  function evaluate(item) {
+    const s = S[item.key];
+    if (!s || !s.values || !s.values.length) return null;
+    const v = s.values[s.values.length - 1];
+    if (item.type === 'dd') {
+      const r = drawdown(s); const cur = r.dd[r.dd.length - 1]; const L = ddLevel(cur);
+      return { lv: L ? L.lv : 0, text: `${s.name} 고점 대비 ${cur.toFixed(1)}%`, badge: L ? `${L.v}% 구간` : null, cur };
+    }
+    if (item.type === 'th') {
+      let hit = null;
+      item.levels.forEach(L => { if (item.dir === 'above' ? v >= L.v : v <= L.v) hit = L; });
+      return { lv: hit ? hit.lv : 0, text: `${s.name} ${fmt(v, item.fg ? 0 : 2)}`, badge: hit ? item.label(hit.v) : null };
+    }
+    if (item.type === 'trend') {
+      const ch = v - nAgo(s.values, 21);
+      const dir = Math.abs(ch) < (item.line * 0.004) ? '보합' : ch > 0 ? '상승세' : '하락세';
+      const pos = v >= item.line ? `${item.unitTxt === '$' ? '$' + item.line : item.line + '%'} 위` : `${item.unitTxt === '$' ? '$' + item.line : item.line + '%'} 아래`;
+      return { lv: 0, trend: true, text: `${s.name} ${pos} · ${dir}`, above: v >= item.line, dir };
+    }
+    return null;
+  }
+
+  // ---------- 차트 ----------
+  function baseOpt() {
+    return {
+      animation: false,
+      textStyle: { fontFamily: 'Pretendard, sans-serif' },
+      tooltip: { trigger: 'axis', confine: true, axisPointer: { type: 'line', lineStyle: { color: '#9ca3af' } },
+        backgroundColor: 'rgba(17,24,39,.92)', borderWidth: 0, textStyle: { color: '#fff', fontSize: 12 } },
+    };
+  }
+  const xAxisCommon = { type: 'category', boundaryGap: false, axisLine: { lineStyle: { color: C.line } },
+    axisTick: { show: false }, axisLabel: { color: C.sub, fontSize: 11, hideOverlap: true,
+      formatter: d => state.months <= 12 ? d.slice(5).replace('-', '/') : d.slice(2, 7).replace('-', '/') } };
+  const yAxisCommon = { type: 'value', scale: true, splitLine: { lineStyle: { color: '#f1f2f4' } },
+    axisLabel: { color: C.sub, fontSize: 11 } };
+
+  // 조건을 만족하는 구간만 색을 입힌 겹침 선 (경계 지점 포함해서 끊김 없이 이어짐)
+  function hiSeries(vals, cond, color, extra) {
+    const ok = vals.map(cond);
+    const data = vals.map((v, i) => (ok[i] || ok[i - 1] || ok[i + 1]) ? v : null);
+    return Object.assign({ type: 'line', data, showSymbol: false, connectNulls: false, silent: true,
+      lineStyle: { width: 2.4, color }, itemStyle: { color }, tooltip: { show: false }, z: 3 }, extra || {});
+  }
+
+  function ddChart(dom, s) {
+    const r = drawdown(s);
+    const minDD = Math.min(...r.dd);
+    const lastPeak = r.peaks[r.peaks.length - 1];
+    // 화면 축척을 위해: 기간 내 최저 하락폭 다음 단계까지만 가격 기준선 표시
+    const shown = []; for (const L of DD_LEVELS) { shown.push(L); if (L.v < minDD) break; }
+    const priceData = r.vals;
+    const ddData = r.dd;
+    const iPeak = r.peaks.lastIndexOf(lastPeak) >= 0 ? r.vals.lastIndexOf(lastPeak) : -1;
+    const opt = Object.assign(baseOpt(), {
+      grid: [{ left: 8, right: 54, top: 14, height: '58%', containLabel: true }, { left: 8, right: 54, top: '74%', bottom: 22, containLabel: true }],
+      axisPointer: { link: [{ xAxisIndex: 'all' }] },
+      xAxis: [Object.assign({}, xAxisCommon, { data: r.dates, gridIndex: 0, axisLabel: { show: false } }),
+              Object.assign({}, xAxisCommon, { data: r.dates, gridIndex: 1 })],
+      yAxis: [Object.assign({}, yAxisCommon, { gridIndex: 0, position: 'right' }),
+              Object.assign({}, yAxisCommon, { gridIndex: 1, position: 'right', max: 0, min: v => Math.min(-20, Math.floor(v.min / 10) * 10),
+                splitNumber: 2, axisLabel: { color: C.sub, fontSize: 10, formatter: '{value}%' } })],
+      tooltip: Object.assign(baseOpt().tooltip, { formatter: ps => {
+        const p = ps.find(x => x.seriesIndex === 0) || ps[0]; const i = p.dataIndex;
+        return `${r.dates[i]}<br>${s.name}: <b>${vfmt(s, r.vals[i])}</b><br>고점: ${vfmt(s, r.peaks[i])}<br>고점 대비: <b>${r.dd[i].toFixed(2)}%</b>`;
+      } }),
+      series: [
+        { type: 'line', name: s.name, data: priceData, showSymbol: false, lineStyle: { width: 2, color: C.base }, itemStyle: { color: C.base },
+          xAxisIndex: 0, yAxisIndex: 0,
+          markLine: { symbol: 'none', silent: true, animation: false,
+            data: shown.map(L => ({ yAxis: +(lastPeak * (1 + L.v / 100)).toFixed(2),
+              lineStyle: { color: L.c, type: 'dashed', width: 1.2 },
+              label: { formatter: `${L.v}%  ${vfmt(s, lastPeak * (1 + L.v / 100))}`, position: 'insideStartTop', color: L.c, fontSize: 10, fontWeight: 600 } })) },
+          markPoint: iPeak >= 0 ? { symbol: 'pin', symbolSize: 26, itemStyle: { color: '#111827' },
+            label: { fontSize: 9, formatter: '고점' }, data: [{ coord: [r.dates[iPeak], lastPeak] }] } : undefined },
+        { type: 'line', name: '고점 대비', data: ddData, showSymbol: false, xAxisIndex: 1, yAxisIndex: 1,
+          lineStyle: { width: 1.2, color: C.base }, itemStyle: { color: C.base }, areaStyle: { opacity: .12, color: C.base },
+          markLine: { symbol: 'none', silent: true, data: DD_LEVELS.filter(L => L.v >= Math.min(-20, minDD - 10)).map(L => ({ yAxis: L.v,
+            lineStyle: { color: L.c, type: 'dotted' }, label: { show: false } })) } },
+      ],
+    });
+    DD_LEVELS.forEach(L => {
+      if (!r.dd.some(x => x <= L.v)) return;
+      opt.series.push(hiSeries(r.vals, (_, i) => r.dd[i] <= L.v, L.c, { xAxisIndex: 0, yAxisIndex: 0 }));
+      opt.series.push(hiSeries(r.dd, x => x <= L.v, L.c, { xAxisIndex: 1, yAxisIndex: 1, lineStyle: { width: 1.6, color: L.c }, areaStyle: { color: L.c, opacity: .35 } }));
+    });
+    return opt;
+  }
+
+  function lineChart(dom, s, item) {
+    const i0 = cutoffIndex(s.dates);
+    const dates = s.dates.slice(i0), vals = s.values.slice(i0);
+    const opt = Object.assign(baseOpt(), {
+      grid: { left: 8, right: 50, top: 14, bottom: 22, containLabel: true },
+      xAxis: Object.assign({}, xAxisCommon, { data: dates }),
+      yAxis: Object.assign({}, yAxisCommon, { position: 'right' }),
+      series: [],
+    });
+    const series = { type: 'line', name: s.name, data: vals, showSymbol: false, lineStyle: { width: 2, color: C.base }, itemStyle: { color: C.base } };
+    const overlays = [];
+    const fv = v => vfmt(s, v);
+    let tipExtra = () => '';
+
+    if (item.type === 'th') {
+      const lv = item.levels; // 1단계, 2단계
+      const hit = (v, L) => item.dir === 'above' ? v >= L.v : v <= L.v;
+      lv.forEach(L => { if (vals.some(v => hit(v, L))) overlays.push(hiSeries(vals, v => hit(v, L), L.c)); });
+      const max = Math.max(...vals), min = Math.min(...vals);
+      if (item.yMin != null) { opt.yAxis.min = item.yMin; opt.yAxis.max = item.yMax; opt.yAxis.scale = false; }
+      else if (item.dir === 'above') { opt.yAxis.max = v => Math.max(v.max, lv[1].v + 3); }
+      series.markLine = { symbol: 'none', silent: true, data: lv.map(L => ({ yAxis: L.v,
+        lineStyle: { color: L.c, type: 'dashed', width: 1.2 },
+        label: { formatter: item.label(L.v), position: 'insideStartTop', color: L.c, fontSize: 10, fontWeight: 600 } })) };
+      const bandFrom = item.dir === 'above' ? lv[0].v : (item.yMin ?? 0);
+      const bandTo = item.dir === 'above' ? (item.yMax ?? Math.max(max, lv[1].v + 3) * 1.05) : lv[0].v;
+      series.markArea = { silent: true, data: [
+        [{ yAxis: item.dir === 'above' ? lv[0].v : lv[1].v, itemStyle: { color: lv[0].c, opacity: .07 } }, { yAxis: item.dir === 'above' ? lv[1].v : lv[0].v }],
+        [{ yAxis: item.dir === 'above' ? lv[1].v : bandFrom, itemStyle: { color: lv[1].c, opacity: .1 } }, { yAxis: item.dir === 'above' ? bandTo * 2 : lv[1].v }],
+      ] };
+      if (item.fg) {
+        tipExtra = v => ` (${fgLabel(v)})`;
+        series.markArea.data.push([{ yAxis: 75, itemStyle: { color: '#16a34a', opacity: .05 } }, { yAxis: 100 }]);
+      }
+    }
+    if (item.type === 'trend') {
+      if (vals.some(v => v >= item.line)) overlays.push(hiSeries(vals, v => v >= item.line, C.l3));
+      const ov = item.overlay && S[item.overlay] ? S[item.overlay].values.slice(cutoffIndex(S[item.overlay].dates)) : [];
+      const lo = Math.min(...vals, ...ov, item.line), hi = Math.max(...vals, ...ov, item.line), rg = (hi - lo) || 1;
+      const step = Math.pow(10, Math.floor(Math.log10(rg / 4)));
+      opt.yAxis.min = Math.floor((lo - rg * 0.04) / step) * step;
+      opt.yAxis.max = Math.ceil((hi + rg * 0.04) / step) * step;
+      series.markLine = { symbol: 'none', silent: true, data: [{ yAxis: item.line,
+        lineStyle: { color: C.l3, type: 'dashed', width: 1.4 },
+        label: { formatter: `기준 ${item.unitTxt === '$' ? '$' + item.line : item.line + '%'}`, position: 'insideStartTop', color: C.l3, fontSize: 10, fontWeight: 600 } }] };
+      // 기준선 돌파 지점 표시
+      const cross = [];
+      for (let i = 1; i < vals.length; i++) {
+        const a = vals[i - 1] >= item.line, b = vals[i] >= item.line;
+        if (a !== b) cross.push({ coord: [dates[i], vals[i]], value: b ? '▲' : '▼', itemStyle: { color: b ? C.l3 : '#2563eb' } });
+      }
+      if (cross.length <= 30) series.markPoint = { symbol: 'circle', symbolSize: 7, label: { show: false }, data: cross };
+      // 20일 이동평균
+      const ma = vals.map((_, i) => { const st = Math.max(0, i - 19); const sl = vals.slice(st, i + 1); return +(sl.reduce((x, y) => x + y, 0) / sl.length).toFixed(3); });
+      opt.series.push(series, { type: 'line', name: '20일 평균', data: ma, showSymbol: false, lineStyle: { width: 1, type: 'dotted', color: '#9ca3af' }, itemStyle: { color: '#9ca3af' } });
+      if (item.overlay && S[item.overlay] && S[item.overlay].values.length) {
+        const o = S[item.overlay]; const m = new Map(o.dates.map((d, i) => [d, o.values[i]]));
+        opt.series.push({ type: 'line', name: o.name, data: dates.map(d => m.get(d) ?? null), connectNulls: true, showSymbol: false,
+          lineStyle: { width: 1, color: '#a78bfa' }, itemStyle: { color: '#a78bfa' } });
+      }
+    } else {
+      opt.series.push(series);
+    }
+    opt.series.push(...overlays);
+    opt.tooltip.formatter = ps => {
+      const i = ps[0].dataIndex;
+      return `${dates[i]}<br>` + ps.filter(p => p.seriesName && !/^series/.test(p.seriesName)).map(p => `${p.marker}${p.seriesName}: <b>${p.value == null ? '-' : fv(p.value)}</b>${p.seriesIndex === 0 ? tipExtra(p.value) : ''}`).join('<br>');
+    };
+    return opt;
+  }
+
+  // ---------- 카드 ----------
+  function card(item, parent) {
+    const s = S[item.key];
+    const c = el('div', 'card'); c.id = 'card-' + item.key; parent.appendChild(c);
+    const ct = el('div', 'ct'); ct.appendChild(el('span', 'nm', s ? (s.ticker ? `${s.name} (${s.ticker})` : s.name) : item.key));
+    ct.appendChild(el('span', 'src', s && s.source ? s.source : '')); c.appendChild(ct);
+    if (!s || !s.values || !s.values.length) {
+      c.appendChild(el('div', 'err', '데이터 없음' + (s && s.error ? ': ' + s.error : '')));
+      return;
+    }
+    const v = s.values[s.values.length - 1], pv = s.values[s.values.length - 2];
+    const val = el('div', 'val'); val.appendChild(el('span', 'v', vfmt(s, v)));
+    if (pv != null) {
+      const d = v - pv;
+      const txt = s.unit === '%' ? `${d >= 0 ? '+' : ''}${d.toFixed(s.name === 'KOFR' ? 3 : 2)}%p` : `${d >= 0 ? '+' : ''}${fmt(d, item.fg ? 1 : 2)} (${d >= 0 ? '+' : ''}${(100 * d / pv).toFixed(2)}%)`;
+      val.appendChild(el('span', 'chg ' + (d > 0 ? 'up' : d < 0 ? 'down' : ''), txt));
+    }
+    val.appendChild(el('span', 'meta', s.asof + ' 기준'));
+    c.appendChild(val);
+    const bds = el('div', 'badges'); c.appendChild(bds);
+    const ev = evaluate(item);
+    if (item.type === 'dd') {
+      const r = drawdown(s); const cur = r.dd[r.dd.length - 1]; const L = ddLevel(cur);
+      bds.appendChild(el('span', 'bd ' + (L ? 'lv' + L.lv : ''), `고점 대비 ${cur.toFixed(1)}%`));
+      if (L) bds.appendChild(el('span', 'bd lv' + L.lv, `${L.v}% 구간 진입`));
+      const next = DD_LEVELS.find(x => x.v < cur);
+      if (next) bds.appendChild(el('span', 'bd', `${next.v}%까지 ${vfmt(s, r.peaks[r.peaks.length - 1] * (1 + next.v / 100))}`));
+      bds.appendChild(el('span', 'bd', `${state.peak === 'ath' ? '전고점' : '기간 고점'} ${vfmt(s, r.peaks[r.peaks.length - 1])}`));
+      if (ev.lv) c.classList.add('lv' + ev.lv);
+    } else if (item.type === 'th') {
+      if (item.fg) bds.appendChild(el('span', 'bd', fgLabel(v)));
+      if (ev.badge) { bds.appendChild(el('span', 'bd lv' + ev.lv, ev.badge)); c.classList.add('lv' + ev.lv); }
+      else bds.appendChild(el('span', 'bd', `기준(${item.levels.map(L => L.v).join(' / ')}) 미충족`));
+    } else if (item.type === 'trend') {
+      bds.appendChild(el('span', 'bd ' + (ev.above ? 'lv3' : ''), ev.text.replace(s.name + ' ', '').split(' · ')[0]));
+      const ch1 = v - nAgo(s.values, 21), ch3 = v - nAgo(s.values, 63);
+      bds.appendChild(el('span', 'bd ' + (ev.dir === '상승세' ? 'rise' : ev.dir === '하락세' ? 'fall' : ''), `${ev.dir} · 1개월 ${item.fmtChg(ch1)}`));
+      bds.appendChild(el('span', 'bd', `3개월 ${item.fmtChg(ch3)}`));
+      if (ev.above) c.classList.add('lv2');
+    } else if (item.type === 'info') {
+      const ch1 = v - nAgo(s.values, 21);
+      bds.appendChild(el('span', 'bd', `1개월 ${item.fmtChg(ch1)}`));
+      if (item.note) bds.appendChild(el('span', 'bd', item.note));
+    }
+    if (s.stale) c.appendChild(el('div', 'err', `최근 갱신 실패, 직전 데이터 표시 중 (${s.error || ''})`));
+    const ch = el('div', 'chart'); c.appendChild(ch);
+    const chart = echarts.init(ch, null, { renderer: 'canvas' });
+    try { chart.setOption(item.type === 'dd' ? ddChart(ch, s) : lineChart(ch, s, item)); } catch (e) { console.error(item.key, e); c.appendChild(el('div', 'err', '차트 표시 오류')); }
+    charts.push(chart);
+  }
+
+  // ---------- 알림 요약 ----------
+  function renderAlerts() {
+    const box = document.getElementById('alerts'); box.innerHTML = '';
+    const items = [];
+    SECTIONS.forEach(sec => sec.items.forEach(it => { const e = evaluate(it); if (e) items.push([it, e]); }));
+    M7KEYS.forEach(k => { const it = { key: k, type: 'dd' }; const e = evaluate(it); if (e) items.push([it, e]); });
+    const hits = items.filter(([, e]) => e.lv > 0).sort((a, b) => b[1].lv - a[1].lv);
+    const trends = items.filter(([, e]) => e.trend);
+    if (!hits.length) box.appendChild(el('span', 'chip none', '현재 충족된 알림 기준 없음'));
+    hits.forEach(([it, e]) => {
+      const ch = el('span', 'chip lv' + e.lv);
+      ch.textContent = `${e.text}${e.badge && it.type !== 'dd' ? ' · ' + e.badge : e.badge ? ' · ' + e.badge : ''}`;
+      ch.onclick = () => jump(it.key); box.appendChild(ch);
+    });
+    trends.forEach(([it, e]) => {
+      const ch = el('span', 'chip'); const dot = el('span', 'dot'); dot.style.background = e.above ? C.l3 : '#2563eb';
+      ch.appendChild(dot); ch.appendChild(document.createTextNode(e.text)); ch.onclick = () => jump(it.key); box.appendChild(ch);
+    });
+  }
+  function jump(key) {
+    const c = document.getElementById('card-' + key); if (!c) return;
+    c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
+  }
+
+  // ---------- M7 표 ----------
+  function m7Table(parent) {
+    const rows = M7KEYS.map(k => { const s = S[k]; if (!s.values.length) return null; const r = drawdown(s);
+      return { k, s, v: s.values[s.values.length - 1], pv: s.values[s.values.length - 2], peak: r.peaks[r.peaks.length - 1], dd: r.dd[r.dd.length - 1] }; })
+      .filter(Boolean).sort((a, b) => a.dd - b.dd);
+    const w = el('div', 'tblwrap'); const t = el('table', 'm7'); w.appendChild(t); parent.appendChild(w);
+    const h = t.insertRow(); ['종목', '현재가', '전일 대비', state.peak === 'ath' ? '전고점' : '기간 고점', '고점 대비', '단계'].forEach(x => { const th = el('th', null, x); h.appendChild(th); });
+    rows.forEach(r => {
+      const tr = t.insertRow(); tr.onclick = () => jump(r.k); const L = ddLevel(r.dd);
+      tr.insertCell().textContent = `${r.s.name} (${r.s.ticker})`;
+      tr.insertCell().textContent = vfmt(r.s, r.v);
+      const c3 = tr.insertCell(); const d = 100 * (r.v / r.pv - 1); c3.textContent = `${d >= 0 ? '+' : ''}${d.toFixed(2)}%`; c3.className = d > 0 ? 'up' : d < 0 ? 'down' : '';
+      tr.insertCell().textContent = vfmt(r.s, r.peak);
+      const c5 = tr.insertCell(); c5.textContent = r.dd.toFixed(1) + '%'; c5.style.fontWeight = 600; if (L) c5.style.color = L.lv === 1 ? '#a16207' : L.c;
+      const c6 = tr.insertCell(); if (L) { const b = el('span', 'bd lv' + L.lv, `${L.v}%`); c6.appendChild(b); } else c6.textContent = '-';
+    });
+  }
+
+  // ---------- 렌더 ----------
+  function render() {
+    charts.forEach(c => c.dispose()); charts.length = 0;
+    app.innerHTML = '';
+    SECTIONS.forEach(sec => {
+      app.appendChild(el('h2', null, sec.title));
+      const g = el('div', 'grid ' + sec.cls); app.appendChild(g);
+      sec.items.forEach(it => card(it, g));
+    });
+    if (M7KEYS.length) {
+      app.appendChild(el('h2', null, '미국 대형주 M7 (고점 대비 하락)'));
+      m7Table(app);
+      const g = el('div', 'grid small'); app.appendChild(g);
+      M7KEYS.forEach(k => card({ key: k, type: 'dd' }, g));
+    }
+    renderAlerts();
+  }
+
+  const gen = new Date(D.generated);
+  document.getElementById('meta').textContent = `업데이트 ${gen.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })}`;
+  document.getElementById('foot').innerHTML =
+    '전고점 기준: 상장 이후 전체 기간의 최고 종가(M7은 분할/배당 반영 수정주가). 기간 고점 기준: 선택한 기간 안에서의 최고 종가.<br>' +
+    '하루 한 번(한국시간 화~토 오전) 자동 갱신. 투자 판단의 참고용이며 데이터 지연이나 오류가 있을 수 있습니다.';
+
+  document.getElementById('rangeSeg').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    state.months = +b.dataset.r; [...e.currentTarget.children].forEach(x => x.classList.toggle('on', x === b)); render();
+  };
+  document.getElementById('peakSeg').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    state.peak = b.dataset.p; [...e.currentTarget.children].forEach(x => x.classList.toggle('on', x === b)); render();
+  };
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => charts.forEach(c => c.resize()), 120); });
+  render();
+})();
+</script>
+</body>
+</html>
